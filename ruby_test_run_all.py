@@ -46,11 +46,11 @@ class RubyTestRunAllFolders(object):
 class RubyTestRunCommand(sublime_plugin.WindowCommand):
   # Command entry point
   def run(self, index=None):
-    self.run_spec(self.active_file_path())
+    self.run_spec(self.active_file_path(), self.active_line_number())
 
   # Pushes paths to spin
-  def run_spec(self, path):
-      subprocess.call("/home/fabio/.rbenv/bin/rbenv exec spin push {0}".format(path), shell=True, cwd=self.root_path(path))
+  def run_spec(self, path, line):
+      subprocess.call("/home/fabio/.rbenv/bin/rbenv exec spin push {0}:{1}".format(path, line), shell=True, cwd=self.root_path(path))
 
   # Returns the root folder for the given file and folders
   def root_path(self, path):
@@ -65,6 +65,10 @@ class RubyTestRunCommand(sublime_plugin.WindowCommand):
 
           if file_path and len(file_path) > 0:
               return file_path
+
+  def active_line_number(self):
+      char_under_cursor = self.window.active_view().sel()[0].a
+      return self.window.active_view().rowcol(char_under_cursor)[0] + 1
 
   # Displays a status message on sublime.
   def status_msg(self, message):
@@ -84,4 +88,5 @@ class RubyTestRunAllCommand(RubyTestRunCommand):
   # Runs the specs in the folder
   def run_spec(self, index):
       if index >= 0:
-          super(RubyTestRunAllCommand, self).run_spec(self.folders.folders()[index])
+          path = self.folders.folders()[index]
+          subprocess.call("/home/fabio/.rbenv/bin/rbenv exec spin push {0}".format(path), shell=True, cwd=self.root_path(path))
