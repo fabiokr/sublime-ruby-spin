@@ -4,9 +4,9 @@ class RubyTestRunAllFolders(object):
     # Initializes the folders object.
     #
     # file_path - the file to look folders for
-    def __init__(self, file_path, folders):
+    def __init__(self, file_path, root_path):
         self.__file_path = file_path
-        self.__root = self.__root(folders)
+        self.__root_path = root_path
         self.__folders = []
         self.__descriptions = []
         self.__build()
@@ -19,19 +19,9 @@ class RubyTestRunAllFolders(object):
     def folders(self):
         return self.__folders
 
-    # # Retrieves the root folder.
-    def root(self):
-        return self.__root
-
-    # Returns the root folder for the given file and folders
-    def __root(self, folders):
-        for folder in folders:
-            if self.__file_path.startswith(os.path.join(folder, "")):
-                return folder
-
     # Retrieves the folder name without the root part.
     def __folder_without_root(self, folder):
-        return os.path.basename(self.__root) + folder[len(self.__root):]
+        return os.path.basename(self.__root_path) + folder[len(self.__root_path):]
 
     # Converts paths to posixpaths.
     def __to_posixpath(self, path):
@@ -46,39 +36,30 @@ class RubyTestRunAllFolders(object):
 
         current_dir = os.path.dirname(self.__to_posixpath(self.__file_path))
 
-        while current_dir != self.__root :
+        while current_dir != self.__root_path :
             folders.append(current_dir)
             current_dir = os.path.dirname(current_dir)
 
         self.__folders = folders
         self.__descriptions = [self.__folder_without_root(folder) for folder in folders]
 
-
-class RubyTestRunAllCommand(sublime_plugin.WindowCommand):
+class RubyTestRunCommand(sublime_plugin.WindowCommand):
+  # Command entry point
   def run(self, index=None):
-    active_file_path = self.__active_file_path()
+    self.run_spec(self.active_file_path())
 
-    if active_file_path:
-        self.__folders = RubyTestRunAllFolders(active_file_path, sublime.active_window().folders())
+  # Pushes paths to spin
+  def run_spec(self, path):
+      subprocess.call("/home/fabio/.rbenv/bin/rbenv exec spin push {0}".format(path), shell=True, cwd=self.root_path(path))
 
-        self.window.show_quick_panel(self.__folders.descriptions(), self.__run_spec)
-    else:
-        self.__status_msg("No open files")
-
-  # Runs the specs in the folder
-  def __run_spec(self, index):
-        if index >= 0:
-            print(self.__folders.root())
-            print("~/.rbenv/bin/rbenv exec spin push {0}".format(self.__folders.folders()[index]))
-
-            subprocess.call("/home/fabio/.rbenv/bin/rbenv exec spin push {0}".format(self.__folders.folders()[index]), shell=True, cwd=self.__folders.root())
-
-  # Retrieves the patterns from settings.
-  def __patterns(self):
-      return sublime.load_settings("RelatedFiles.sublime-settings").get('patterns')
+  # Returns the root folder for the given file and folders
+  def root_path(self, path):
+      for folder in sublime.active_window().folders():
+          if path.startswith(os.path.join(folder, "")):
+              return folder
 
   # Returns the activelly open file path from sublime.
-  def __active_file_path(self):
+  def active_file_path(self):
       if self.window.active_view():
           file_path = self.window.active_view().file_name()
 
@@ -86,5 +67,21 @@ class RubyTestRunAllCommand(sublime_plugin.WindowCommand):
               return file_path
 
   # Displays a status message on sublime.
-  def __status_msg(self, message):
+  def status_msg(self, message):
       sublime.status_message(message)
+
+class RubyTestRunAllCommand(RubyTestRunCommand):
+  def run(self, index=None):
+    active_file_path = self.active_file_path()
+
+    if active_file_path:
+        self.folders = RubyTestRunAllFolders(active_file_path, self.root_path(active_file_path))
+
+        self.window.show_quick_panel(self.folders.descriptions(), self.run_spec)
+    else:
+        self.status_msg("No open files")
+
+  # Runs the specs in the folder
+  def run_spec(self, index):
+      if index >= 0:
+          super(RubyTestRunAllCommand, self).run_spec(self.folders.folders()[index])
