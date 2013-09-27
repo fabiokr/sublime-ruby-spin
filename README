@@ -1,0 +1,5 @@
+git clone https://github.com/fabiokr/sublime-ruby-spin RubySpin
+
+TODO:
+
+- Make it relative to the user path
